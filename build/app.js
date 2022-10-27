@@ -19,7 +19,19 @@ app.get("/todo", (req, res) => {
 });
 app.post("/todo", (req, res) => {
     todoList.push(req.body);
-    res.status(201).send("Successfully create todo");
+    res.status(201).send("Successfully created todo");
+});
+app.put("/todo", (req, res) => {
+    todoList.map((todo) => {
+        if (todo.id == req.body.id) {
+            todo.title = req.body.title;
+            todo.important = req.body.important;
+            return res.send(todo);
+        }
+    });
+    return res.send({
+        error: "ToDo id does not exist!"
+    });
 });
 app.listen(PORT, () => {
     console.log(`App is running on port:${PORT}`);
