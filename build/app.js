@@ -33,6 +33,11 @@ app.put("/todo", (req, res) => {
         error: "ToDo id does not exist!"
     });
 });
+app.delete("/todo", (req, res) => {
+    const i = todoList.findIndex((ele) => ele.id == req.body.id);
+    todoList.splice(i, 1);
+    return res.send(todoList);
+});
 app.listen(PORT, () => {
     console.log(`App is running on port:${PORT}`);
 });

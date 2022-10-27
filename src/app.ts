@@ -43,6 +43,12 @@ app.put("/todo", (req: Request, res: Response) => {
   });
 });
 
+app.delete("/todo", (req: Request, res: Response) => {
+  const i = todoList.findIndex((ele) => ele.id == req.body.id);
+  todoList.splice(i, 1);
+  return res.send(todoList);
+});
+
 app.listen(PORT, () => {
   console.log(`App is running on port:${PORT}`);
 });
