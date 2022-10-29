@@ -13,14 +13,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const mongoose_1 = require("mongoose");
-const todo_1 = require("./models/todo");
+const db_1 = require("./db/db");
+const queries_1 = require("./db/queries");
 const app = (0, express_1.default)();
-const DB_URL = "mongodb://localhost:27017/todo-express-ts";
 const PORT = 3000;
-(0, mongoose_1.connect)(DB_URL)
-    .then(() => console.log("Database connected"))
-    .catch((err) => console.error(err));
 // parsing the body (json)
 app.use(express_1.default.json());
 // parsing the body (urlencoded-formdata)
@@ -28,53 +24,57 @@ app.use(express_1.default.urlencoded({ extended: false }));
 app.get("/", (req, res) => {
     res.send("Hello New Project");
 });
-app.get("/todo", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const tasks = yield todo_1.Todo.find({});
-        res.status(200).json(tasks);
-    }
-    catch (e) {
-        res.status(400).json({
-            error: e
-        });
-    }
-}));
+app.get("/todo", (req, res) => {
+    db_1.pool.query(queries_1.getTodosQuery, (error, result) => {
+        if (error)
+            throw error;
+        res.status(200).json(result.rows);
+    });
+});
 app.post("/todo", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const todo = new todo_1.Todo(req.body);
-        yield todo.save();
-        res.status(201).json(todo);
-    }
-    catch (e) {
-        res.status(400).json({
-            error: e
-        });
-    }
+    const { name, important } = req.body;
+    // check if same todo already exists
+    db_1.pool.query(queries_1.checkTodoExists, [name], (error, result) => {
+        if (result.rows.length)
+            res.status(403).json({ message: "Todo already exists" });
+    });
+    // add todo to db
+    db_1.pool.query(queries_1.createTodoQuery, [name, important], (error, result) => {
+        if (error)
+            throw error;
+        res
+            .status(201)
+            .json({ message: "Todo created successfully", result: result });
+    });
 }));
 app.put("/todo/:id", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const todo = yield todo_1.Todo.findByIdAndUpdate(req.params.id, Object.assign({}, req.body));
-        res.status(200).json(todo);
-    }
-    catch (e) {
-        res.status(400).json({
-            error: e
+    const id = parseInt(req.params.id);
+    const { name, important } = req.body;
+    db_1.pool.query(queries_1.getTodoById, [id], (error, result) => {
+        if (!result.rows.length)
+            return res
+                .status(404)
+                .json({ message: "Todo was not found in the database" });
+        // TODO: Prevent changing name to already existing todo name
+        db_1.pool.query(queries_1.updateTodoQuery, [name, important, id], (error, result) => {
+            if (error)
+                throw error;
+            res.status(200).json({ message: "Todo was updated successfully" });
         });
-    }
+    });
 }));
-app.delete("/todo/:id", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        yield todo_1.Todo.findByIdAndDelete(req.params.id);
-        res.status(200).json({
-            message: "Todo was successfully deleted"
+app.delete("/todo/:id", (req, res) => {
+    const id = parseInt(req.params.id);
+    db_1.pool.query(queries_1.getTodoById, [id], (error, result) => {
+        if (!result.rows.length)
+            res.status(400).json({ message: "Todo was not found in the database" });
+        db_1.pool.query(queries_1.deleteTodoQuery, [id], (error, result) => {
+            if (error)
+                throw error;
+            res.status(200).json({ message: "Todo was deleted successfully" });
         });
-    }
-    catch (e) {
-        res.status(400).json({
-            error: e
-        });
-    }
-}));
+    });
+});
 app.listen(PORT, () => {
     console.log(`App is running on port:${PORT}`);
 });
